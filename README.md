@@ -1,7 +1,7 @@
 # riverIsland
 
 An Observable Notebook Kit recreation of *riverIsland* (John Cayley, 1999- ; QuickTime version 2008), a navigable text
-movie composed from transliteral morphs, with a spatialised aural environment. Co-implemented with Claude Sonnet 5.5.
+movie composed from transliteral morphs, with a spatialised aural environment. Co-implemented with Claude Sonnet 5.5 on Sunday 25 October 2026.
 The notebook entry point is `nbks/index.html`.
 
 ## Commands
