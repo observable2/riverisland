@@ -1,0 +1,14 @@
+Fonts used by riverIsland (all under the SIL Open Font License, Version 1.1: https://openfontlicense.org)
+
+noto-serif-tc-subset.woff2
+  A subset (728 characters, weight 400, made by tools/subset_font.py) of Noto Serif TC.
+  Copyright (c) 2017-2024 Adobe (http://www.adobe.com/), as stated in the font.
+  Source: https://github.com/google/fonts/tree/main/ofl/notoseriftc
+
+Courier Prime (not stored here: installed as the npm package @fontsource/courier-prime and bundled into the build)
+  Copyright 2015 The Courier Prime Project Authors (https://github.com/quoteunquoteapps/CourierPrime), as stated in the package.
+  See node_modules/@fontsource/courier-prime/LICENSE.
+
+Cousine (the fallback; installed as the npm package @fontsource/cousine and bundled into the build)
+  Copyright 2026 The Cousine Project Authors (https://github.com/googlefonts/cousine), as stated in the package.
+  See node_modules/@fontsource/cousine/LICENSE.

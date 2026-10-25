@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <!-- Hints only: GitHub Pages sets its own HTTP cache headers (about 10 minutes) and we cannot change them. What the Screen shows comes from the database via fetch (no-store), not from this file. -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style type="text/css">
+      @import url("observable:styles/index.css");
+      @import url("@fontsource-variable/inter/wght.css");
+      @import url("@fontsource-variable/inter/wght-italic.css");
+      @import url("@fontsource-variable/source-serif-4/wght.css");
+      @import url("@fontsource-variable/source-serif-4/wght-italic.css");
+      /* the stage text of riverIsland: Courier Prime (Google Fonts), with Cousine, which has exactly the widths of Courier New, as fallback */
+      @import url("@fontsource/courier-prime/400.css");
+      @import url("@fontsource/cousine/400.css");
+      /* padding and borders count inside an element's width/height; without this, width:100% plus padding/border overflows its container */
+      *, *::before, *::after {
+        box-sizing: border-box;
+      }
+      /* force no top margin on every element except the html tag, which keeps a small margin (set below) */
+      *:not(html) {
+        margin-top:0 !important;
+      }
+      /* every cell's wrapper div gets Observable's default cell margin (17px 0); this project never relies on that spacing (each page has at most one visible content cell), so it's collapsed everywhere rather than just on empty/hidden cells, which is fragile (:empty only matches a cell with zero child nodes, including no whitespace text nodes) */
+      .observablehq--cell {
+        margin: 0;
+      }
+      /* edit your backgound colors
+        these colors are intended to show you where the elements are
+        and how to configure them */
+      html {
+        /* background-color: #111111; */
+        margin:0 0 0 0;
+        margin-top:1vw; /* very small margin above the whole page; no other side */
+        padding:0; /* change this to override template default */
+        border:0;
+      }
+      /* and edit this for body properties */
+      body {
+        /* background-color: gray; */
+        max-width: none;
+        margin:0;
+        padding:0; /* change this to override template default */
+        border:0;
+        color: snow;
+      }
+      main {
+        /* background-color: red; */
+        max-width: none;
+        margin:0;
+        padding:0; /* change this to override template default */
+        border:0;
+      }
+      /* add more custom styles here */
+    </style>
+  </head>
+  <body>
+    <main></main>
+  </body>
+</html>

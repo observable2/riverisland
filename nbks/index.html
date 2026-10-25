@@ -1,0 +1,339 @@
+<!doctype html>
+<notebook theme="stark">
+  <title>riverIsland</title>
+  <script id="1" type="text/html">
+    <style>
+      /* the stage is the 1024x768 window of the original QuickTime movie, scaled to fit; it is one pixel taller (769) so that the black below the panorama (16 px) equals the black above the object movie */
+      #riverisland { position: relative; margin: 0 auto; overflow: hidden; background: #000; }
+      #stage { position: absolute; left: 0; top: 0; width: 1024px; height: 769px; transform-origin: 0 0; background: #000; color: #fff; user-select: none; -webkit-user-select: none; }
+      #stage > * { position: absolute; }
+      #stage .view { overflow: hidden; touch-action: none; cursor: pointer; }
+      #stage .view.awake { cursor: grab; }
+      #stage .view.dragging { cursor: grabbing; }
+      #stage .view canvas { display: block; width: 100%; height: 100%; }
+      /* the grey veil of a movie that is not active */
+      #stage .veil { position: absolute; inset: 0; background: rgba(150, 150, 150, 0.4); pointer-events: none; transition: opacity 0.3s; }
+      #stage .awake .veil { opacity: 0; }
+      #stage #obj { left: 32px; top: 16px; width: 164px; height: 496px; }
+      #stage #pano { left: 32px; top: 529px; width: 960px; height: 224px; }
+      #stage #marker { left: 496px; top: 518px; width: 32px; height: 247px; pointer-events: none; mix-blend-mode: screen; }
+      /* 24 px on a 27 px line, white on black, as the 'txt' track (Courier New 24 pt there; here Courier Prime, bundled, with Cousine as fallback).
+         Chinese comes from the bundled subset of Noto Serif TC; a Chinese character takes the two cells of its two bytes */
+      #stage #txt { background: transparent; border: 0; border-radius: 0; padding: 0; color: #fff; left: 290px; top: 24px; width: 720px; height: 488px; margin: 0; overflow: hidden; white-space: pre;
+        font: 24px/27px "Courier Prime", "Cousine", "Noto Serif TC Subset", "Courier New", Courier, monospace; font-weight: normal; letter-spacing: 0; }
+      #stage #txt .w { display: inline-block; width: 2ch; text-align: center; font-style: normal; }
+      #stage #kong { left: 290px; top: 24px; width: 600px; height: 400px; background: #000; display: none; }
+      #stage #kong.on { display: block; }
+      /* the original has the cluster at x = 918; here its right-most ink (the east arrow, 28 px into its 32 px image) is aligned with the right edge of the panorama at x = 992 */
+      #stage #nav { left: 900px; top: 430px; width: 96px; height: 96px; }
+      #stage #nav img { position: absolute; width: 32px; height: 32px; image-rendering: pixelated; mix-blend-mode: screen; visibility: hidden; touch-action: none; }
+      #stage #nav img.on { visibility: visible; }
+      #stage #nav img.hot { cursor: pointer; }
+      #stage #nav #n { left: 32px; top: 0; }
+      #stage #nav #w { left: 0; top: 32px; }
+      #stage #nav #c { left: 32px; top: 32px; }
+      #stage #nav #e { left: 64px; top: 32px; }
+      #stage #nav #s { left: 32px; top: 64px; }
+    </style>
+    <div id="riverisland">
+      <div id="stage">
+        <div class="view" id="obj"><canvas width="164" height="496"></canvas><div class="veil"></div></div>
+        <pre id="txt"></pre>
+        <video id="kong" muted playsinline preload="none"></video>
+        <div class="view" id="pano"><canvas></canvas><div class="veil"></div></div>
+        <img id="marker" alt="">
+        <div id="nav">
+          <img id="n" alt=""><img id="w" alt=""><img id="c" alt=""><img id="e" alt=""><img id="s" alt="">
+        </div>
+      </div>
+    </div>
+  </script>
+  <script id="2" type="module">
+    // riverIsland, 1999- / 2008 (QuickTime) / 2026: recreated from the structure of the original QuickTime movies.
+    // See tools/extract.py (media and texts), data/morph.js (the transliteral morph), data/river.js (navigation),
+    // data/audio.js (the spatialised readings) and workingnotes.md (what was recovered from the movies).
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    const { River, STEP_MS, EAST, WEST, NORTH, SOUTH, frameAt, wrap360, nodeAt } = await import("./data/river.js");
+    const { decodeRow } = await import("./data/morph.js");
+    const { Panorama } = await import("./data/panorama.js");
+    const { Spatial } = await import("./data/audio.js");
+
+    const texts = await FileAttachment("./data/texts.json").json();
+    const nodes = await FileAttachment("./data/nodes.json").json();
+    const files = {
+      pano: FileAttachment("./data/pano/periplus.jpg"),
+      sheets: [
+        FileAttachment("./data/obj/g00.jpg"),
+        FileAttachment("./data/obj/g01.jpg"),
+        FileAttachment("./data/obj/g02.jpg"),
+        FileAttachment("./data/obj/g03.jpg"),
+        FileAttachment("./data/obj/g04.jpg"),
+        FileAttachment("./data/obj/g05.jpg"),
+        FileAttachment("./data/obj/g06.jpg"),
+        FileAttachment("./data/obj/g07.jpg"),
+        FileAttachment("./data/obj/g08.jpg"),
+        FileAttachment("./data/obj/g09.jpg"),
+        FileAttachment("./data/obj/g10.jpg"),
+        FileAttachment("./data/obj/g11.jpg"),
+        FileAttachment("./data/obj/g12.jpg"),
+        FileAttachment("./data/obj/g13.jpg"),
+        FileAttachment("./data/obj/g14.jpg"),
+        FileAttachment("./data/obj/g15.jpg")
+      ],
+      audio: {
+        "atmos.mp3": FileAttachment("./data/audio/atmos.mp3"),
+        "h01.mp3": FileAttachment("./data/audio/h01.mp3"),
+        "h02.mp3": FileAttachment("./data/audio/h02.mp3"),
+        "h03.mp3": FileAttachment("./data/audio/h03.mp3"),
+        "h04.mp3": FileAttachment("./data/audio/h04.mp3"),
+        "h05.mp3": FileAttachment("./data/audio/h05.mp3"),
+        "h06.mp3": FileAttachment("./data/audio/h06.mp3"),
+        "h07.mp3": FileAttachment("./data/audio/h07.mp3"),
+        "h08.mp3": FileAttachment("./data/audio/h08.mp3"),
+        "h09.mp3": FileAttachment("./data/audio/h09.mp3"),
+        "h10.mp3": FileAttachment("./data/audio/h10.mp3"),
+        "h11.mp3": FileAttachment("./data/audio/h11.mp3"),
+        "h12.mp3": FileAttachment("./data/audio/h12.mp3"),
+        "h13.mp3": FileAttachment("./data/audio/h13.mp3"),
+        "h14.mp3": FileAttachment("./data/audio/h14.mp3"),
+        "h15.mp3": FileAttachment("./data/audio/h15.mp3"),
+        "h16.mp3": FileAttachment("./data/audio/h16.mp3"),
+        "v02.mp3": FileAttachment("./data/audio/v02.mp3"),
+        "v03.mp3": FileAttachment("./data/audio/v03.mp3"),
+        "v04.mp3": FileAttachment("./data/audio/v04.mp3"),
+        "v05.mp3": FileAttachment("./data/audio/v05.mp3"),
+        "v07.mp3": FileAttachment("./data/audio/v07.mp3"),
+        "v08.mp3": FileAttachment("./data/audio/v08.mp3"),
+        "v11.mp3": FileAttachment("./data/audio/v11.mp3"),
+        "v12.mp3": FileAttachment("./data/audio/v12.mp3"),
+        "v13.mp3": FileAttachment("./data/audio/v13.mp3"),
+        "v14.mp3": FileAttachment("./data/audio/v14.mp3"),
+        "v15.mp3": FileAttachment("./data/audio/v15.mp3"),
+        "v16.mp3": FileAttachment("./data/audio/v16.mp3")
+      },
+      fonts: {
+        cjk: FileAttachment("./data/fonts/noto-serif-tc-subset.woff2")
+      },
+      icons: {
+        "eWonB": FileAttachment("./data/icons/eWonB.png"),
+        "eWonBgray": FileAttachment("./data/icons/eWonBgray.png"),
+        "inWonB": FileAttachment("./data/icons/inWonB.png"),
+        "indot": FileAttachment("./data/icons/indot.png"),
+        "indotWonB": FileAttachment("./data/icons/indotWonB.png"),
+        "marker": FileAttachment("./data/icons/marker.jpg"),
+        "nWonB": FileAttachment("./data/icons/nWonB.png"),
+        "nWonBgray": FileAttachment("./data/icons/nWonBgray.png"),
+        "sWonB": FileAttachment("./data/icons/sWonB.png"),
+        "sWonBgray": FileAttachment("./data/icons/sWonBgray.png"),
+        "wWonB": FileAttachment("./data/icons/wWonB.png"),
+        "wWonBgray": FileAttachment("./data/icons/wWonBgray.png")
+      },
+      video: {
+        "kong-lt.mp4": FileAttachment("./data/video/kong-lt.mp4"),
+        "kong-py.mp4": FileAttachment("./data/video/kong-py.mp4"),
+        "kong-zi.mp4": FileAttachment("./data/video/kong-zi.mp4")
+      },
+    };
+    const url = async (f) => await f.url();
+
+    // fonts: Courier Prime and Cousine come with the page template (custom.tmpl); the Chinese subset is added here. All are loaded before the first text is shown
+    const cjk = new FontFace("Noto Serif TC Subset", `url(${await url(files.fonts.cjk)}) format("woff2")`, { weight: "400" });
+    document.fonts.add(await cjk.load());
+    await document.fonts.load('24px "Courier Prime"', "abc");
+    await document.fonts.load('24px "Cousine"', "abc");
+
+    const wrapper = document.getElementById("riverisland");
+    const stage = document.getElementById("stage");
+    const txt = document.getElementById("txt");
+    const params = new URLSearchParams(location.search);
+
+    // fit the stage to the window
+    let scale = 1;
+    let pano;
+    const fit = () => {
+      scale = Math.min(window.innerWidth / 1024, (window.innerHeight - 0.01 * window.innerWidth) / 769) * 0.98;
+      stage.style.transform = `scale(${scale})`;
+      wrapper.style.width = `${1024 * scale}px`;
+      wrapper.style.height = `${769 * scale}px`;
+      pano?.resize(Math.min(3, scale * (window.devicePixelRatio || 1)));
+    };
+
+    // ---- media ----
+    const loadImage = async (f) => {
+      const img = new Image();
+      img.src = await url(f);
+      await img.decode();
+      return img;
+    };
+    pano = new Panorama(document.querySelector("#pano canvas"), { cssWidth: 960, cssHeight: 224, lodBias: 0 });
+    window.addEventListener("resize", fit);
+    fit();
+    const [sheets] = await Promise.all([
+      Promise.all(files.sheets.map(loadImage)),
+      url(files.pano).then((u) => pano.show(nodes.pano, u)),
+    ]);
+    const icon = {};
+    for (const [k, f] of Object.entries(files.icons)) {
+      if (k === "marker") document.getElementById("marker").src = await url(f);
+      else icon[k] = await url(f);
+    }
+    const audioUrl = async (list) => Promise.all(list.map((n) => url(files.audio[n])));
+    const spatial = new Spatial({ h: await audioUrl(nodes.audio.h), v: await audioUrl(nodes.audio.v), atmos: await url(files.audio["atmos.mp3"]) });
+
+    // ---- the object movie: one column of 192 frames, packed 12 to a sheet ----
+    const objCanvas = document.querySelector("#obj canvas");
+    const octx = objCanvas.getContext("2d");
+    const { frameWidth: FW, frameHeight: FH, perSheet } = nodes.object;
+    let lastFrame = -1;
+    const drawFrame = (angle) => {
+      const f = frameAt(angle);
+      if (f === lastFrame) return;
+      lastFrame = f;
+      octx.drawImage(sheets[Math.floor(f / perSheet)], (f % perSheet) * FW, 0, FW, FH, 0, 0, FW, FH);
+    };
+
+    // ---- the model ----
+    const river = new River(texts);
+    let awake = null; // the movie that has been clicked: null at first, as in the original, when both are grey
+    const objEl = document.getElementById("obj");
+    const panoEl = document.getElementById("pano");
+
+    const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+    const showText = () => {
+      txt.innerHTML = river
+        .text()
+        .map((r) => esc(decodeRow(r, river.chinese)).replace(/\u0001(.)\u0002/gu, '<i class="w">$1</i>'))
+        .join("\n");
+    };
+
+    const nav = Object.fromEntries(["n", "w", "c", "e", "s"].map((k) => [k, document.getElementById(k)]));
+    const DIRS = { e: EAST, w: WEST, n: NORTH, s: SOUTH };
+    const NORMAL = { e: "eWonB", w: "wWonB", n: "nWonB", s: "sWonB" };
+    const PRESSED = { e: "eWonBgray", w: "wWonBgray", n: "nWonBgray", s: "sWonBgray" };
+    const CENTRE = { ellipse: "inWonB", button: "indotWonB", dot: "indot" };
+    const showIcons = () => {
+      const ic = river.icons();
+      for (const k of "ewns") {
+        const on = ic[k];
+        nav[k].classList.toggle("on", on);
+        nav[k].classList.toggle("hot", on);
+        nav[k].src = icon[ic.pressed === DIRS[k] && on ? PRESSED[k] : NORMAL[k]];
+      }
+      const c = ic.centre;
+      nav.c.classList.toggle("on", c !== "none");
+      nav.c.classList.toggle("hot", c === "dot" || c === "button");
+      if (c !== "none") nav.c.src = icon[CENTRE[c]];
+    };
+
+    // the arrows: hold to step, and leave the arrow (or let go) to reset the momentum
+    for (const k of "ewns") {
+      const el = nav[k];
+      el.addEventListener("pointerdown", (e) => { e.preventDefault(); wake(); river.press(DIRS[k], true); showIcons(); });
+      el.addEventListener("pointerenter", (e) => { if (e.buttons & 1) river.press(DIRS[k]); });
+      el.addEventListener("pointerleave", () => river.release());
+    }
+    window.addEventListener("pointerup", () => river.release());
+    window.addEventListener("pointercancel", () => river.release());
+
+    // the middle icon: the dot (morph to where the movie was dragged), or the button of an interliteral movie
+    const kong = document.getElementById("kong");
+    const closeVideo = () => {
+      river.video = 0;
+      kong.pause();
+      kong.classList.remove("on");
+      txt.style.visibility = "visible";
+      river.dirty = true;
+    };
+    nav.c.addEventListener("pointerdown", async (e) => {
+      e.preventDefault();
+      wake();
+      const c = river.icons().centre;
+      if (river.video) return closeVideo();
+      if (c === "dot") river.jump();
+      else if (c === "button") {
+        river.video = river.vIdx;
+        kong.src = await url(files.video[nodes.video[river.vIdx].split("/").pop()]);
+        kong.classList.add("on");
+        txt.style.visibility = "hidden";
+        kong.currentTime = 0;
+        kong.play().catch(() => {});
+      }
+    });
+    // an arrow also ends a movie
+    for (const k of "ns") nav[k].addEventListener("pointerdown", () => { if (river.video) closeVideo(); });
+
+    // ---- waking the movies, and dragging them ----
+    function wake(which) {
+      if (!spatial.started) spatial.start();
+      if (which && awake !== which) {
+        river.activate(which);
+        awake = river.axis === which ? which : awake;
+        if (awake === which) river.changed = false;
+      }
+      setVeils();
+    }
+    const setVeils = () => {
+      objEl.classList.toggle("awake", awake === "v");
+      panoEl.classList.toggle("awake", awake === "h");
+    };
+
+    const drag = (el, which, move) => {
+      let last, start, moved;
+      el.addEventListener("pointerdown", (e) => {
+        if (awake !== which) { wake(which); return; }
+        if (river.transit) return;
+        last = e;
+        start = which === "h" ? river.pan : river.tilt;
+        el.setPointerCapture(e.pointerId);
+        el.classList.add("dragging");
+      });
+      el.addEventListener("pointermove", (e) => {
+        if (!last) return;
+        move((e.clientX - last.clientX) / scale, (e.clientY - last.clientY) / scale);
+        last = e;
+      });
+      const up = () => {
+        if (!last) return;
+        last = null;
+        el.classList.remove("dragging");
+        river.dragEnd(start);
+      };
+      el.addEventListener("pointerup", up);
+      el.addEventListener("pointercancel", up);
+    };
+    drag(panoEl, "h", (dx) => { pano.drag(dx, 0); river.pan = pano.pan; });
+    // dragging the object movie: 45 degrees of tilt (90 of our angle) over the height of the window
+    drag(objEl, "v", (dx, dy) => { river.tilt = wrap360(river.tilt + (dy * 90) / 496); });
+
+    // the first click anywhere on the stage starts the sound
+    stage.addEventListener("pointerdown", () => { if (!spatial.started) wake(); }, { capture: true });
+    window.addEventListener("keydown", (e) => { if (e.key === "m") spatial.setMuted(!(spatial.muted = !spatial.muted)); });
+
+    // ---- run ----
+    showText();
+    showIcons();
+    setVeils();
+    river.open();
+    globalThis.riverisland = { river, spatial, pano, decodeRow };
+
+    let prev = performance.now();
+    function frame(t) {
+      const dt = Math.min(250, t - prev);
+      prev = t;
+      river.tick(dt);
+      if (awake && awake !== river.axis) { awake = river.axis; setVeils(); } // an arrow makes its movie the active one
+      pano.setPan(river.pan);
+      drawFrame(river.tilt);
+      if (river.dirty) {
+        showText();
+        showIcons();
+        river.dirty = false;
+      }
+      if (awake) spatial.update(awake, awake === "h" ? river.pan : river.tilt, t);
+      pano.render();
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  </script>
+</notebook>
